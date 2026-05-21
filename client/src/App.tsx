@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Header from './components/Header'
 import CategoryTabs from './components/CategoryTabs'
-import NewsCard from './components/NewsCard'
+import ArticleCard from './components/ArticleCard'
 import { usePreferences } from './hooks/usePreferences'
 
 export interface Article {
@@ -26,6 +26,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { prefs, like, dislike, unlike, score } = usePreferences()
+  const stackRef = useRef<HTMLDivElement>(null)
 
   const fetchArticles = useCallback(async (cat: string) => {
     try {
@@ -50,60 +51,72 @@ export default function App() {
   const handleRefresh = async () => {
     setRefreshing(true)
     await fetch('/api/refresh').catch(() => {})
-    setTimeout(() => {
-      fetchArticles(category)
-      setRefreshing(false)
-    }, 4000)
+    setTimeout(() => { fetchArticles(category); setRefreshing(false) }, 4000)
   }
 
-  // Filter out disliked articles, then sort by preference score (desc) then date (desc)
+  const scrollNext = useCallback(() => {
+    if (!stackRef.current) return
+    stackRef.current.scrollBy({ top: window.innerHeight, behavior: 'smooth' })
+  }, [])
+
   const sortedArticles = useMemo(() => {
     return articles
       .filter(a => !prefs.dislikedIds.has(a.id))
       .sort((a, b) => {
-        const scoreDiff = score(b.category, b.source) - score(a.category, a.source)
-        if (scoreDiff !== 0) return scoreDiff
+        const diff = score(b.category, b.source) - score(a.category, a.source)
+        if (diff !== 0) return diff
         return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
       })
   }, [articles, prefs.dislikedIds, score])
 
   return (
     <div className="app">
-      <Header onRefresh={handleRefresh} refreshing={refreshing} lastUpdated={lastUpdated} />
-      <CategoryTabs categories={CATEGORIES} active={category} onChange={setCategory} />
-      <main className="feed">
-        {error && (
-          <div className="error-state">
-            <span>⚠️</span>
+      {/* Fixed overlay header */}
+      <div className="top-overlay">
+        <Header onRefresh={handleRefresh} refreshing={refreshing} lastUpdated={lastUpdated} />
+        <CategoryTabs categories={CATEGORIES} active={category} onChange={cat => { setCategory(cat); stackRef.current?.scrollTo({ top: 0 }) }} />
+      </div>
+
+      {/* Card stack */}
+      <div ref={stackRef} className="card-stack">
+        {loading && (
+          <div className="full-screen-state">
+            <div className="loading-spinner" />
+            <p>Loading your feed…</p>
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="full-screen-state">
+            <span className="state-icon">⚠️</span>
             <p>{error}</p>
-            <button onClick={() => fetchArticles(category)}>Retry</button>
+            <button className="state-btn" onClick={() => fetchArticles(category)}>Retry</button>
           </div>
         )}
-        {loading && !error && (
-          <div className="loading-grid">
-            {[...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)}
-          </div>
-        )}
+
         {!loading && !error && sortedArticles.length === 0 && (
-          <div className="empty-state">
-            <p>No articles yet. Check back in a moment.</p>
-            <button onClick={handleRefresh}>Refresh</button>
+          <div className="full-screen-state">
+            <span className="state-icon">📭</span>
+            <p>No articles yet. Pull to refresh.</p>
+            <button className="state-btn" onClick={handleRefresh}>Refresh</button>
           </div>
         )}
+
         {!loading && !error && sortedArticles.map(article => (
-          <NewsCard
-            key={article.id}
-            article={article}
-            liked={prefs.likedIds.has(article.id)}
-            disliked={prefs.dislikedIds.has(article.id)}
-            onLike={() => prefs.likedIds.has(article.id)
-              ? unlike(article.id, article.category, article.source)
-              : like(article.id, article.category, article.source)
-            }
-            onDislike={() => dislike(article.id, article.category, article.source)}
-          />
+          <div key={article.id} className="card-snap-item">
+            <ArticleCard
+              article={article}
+              liked={prefs.likedIds.has(article.id)}
+              onSave={() => prefs.likedIds.has(article.id)
+                ? unlike(article.id, article.category, article.source)
+                : like(article.id, article.category, article.source)
+              }
+              onDismiss={() => { dislike(article.id, article.category, article.source); scrollNext() }}
+              onScrollNext={scrollNext}
+            />
+          </div>
         ))}
-      </main>
+      </div>
     </div>
   )
 }
