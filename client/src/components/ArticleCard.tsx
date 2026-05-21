@@ -10,22 +10,51 @@ interface ArticleCardProps {
   onScrollNext: () => void
 }
 
+// Vivid dark gradients with real team/category identity
 const FALLBACK_GRADIENTS: Record<string, string> = {
-  'World':        'linear-gradient(160deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
-  'Tech':         'linear-gradient(160deg, #0d0d0d 0%, #1a0533 50%, #2d1b69 100%)',
-  'Finance':      'linear-gradient(160deg, #0a1628 0%, #0d2b1e 50%, #0a3d2a 100%)',
-  'Health':       'linear-gradient(160deg, #0d1b0d 0%, #1a2e1a 50%, #0a3321 100%)',
-  'Sports':       'linear-gradient(160deg, #1a0505 0%, #3b0a0a 50%, #1a0a2e 100%)',
-  'Boston Sports':'linear-gradient(160deg, #1a0000 0%, #3b0000 50%, #1a0005 100%)',
-  'SD Sports':    'linear-gradient(160deg, #1a0a00 0%, #3b1e00 50%, #1a0800 100%)',
-  'Boston':       'linear-gradient(160deg, #040d21 0%, #0a1a35 50%, #0a2145 100%)',
-  'San Diego':    'linear-gradient(160deg, #0a0521 0%, #1a0a35 50%, #210535 100%)',
+  'World':         'linear-gradient(160deg, #0a1628 0%, #0d2a4a 45%, #0f3d6e 100%)',
+  'Tech':          'linear-gradient(160deg, #0d001f 0%, #1f0547 45%, #3a0f82 100%)',
+  'Finance':       'linear-gradient(160deg, #001a08 0%, #00331a 45%, #00522a 100%)',
+  'Health':        'linear-gradient(160deg, #0a1f05 0%, #143d0a 45%, #1a5c0d 100%)',
+  'Sports':        'linear-gradient(160deg, #1a0505 0%, #3d0a0a 45%, #5c0f0f 100%)',
+  // Patriots navy + Celtics green + Red Sox crimson — navy dominant
+  'Boston Sports': 'linear-gradient(160deg, #050d1f 0%, #0a1a3d 45%, #0f266b 100%)',
+  // Padres: deep brown + gold
+  'SD Sports':     'linear-gradient(160deg, #1a0f00 0%, #2e1a00 45%, #4a2d00 100%)',
+  'Boston':        'linear-gradient(160deg, #050d1a 0%, #081a33 45%, #0a2652 100%)',
+  'San Diego':     'linear-gradient(160deg, #001219 0%, #001f2e 45%, #003347 100%)',
 }
 
-const DEFAULT_GRADIENT = 'linear-gradient(160deg, #0d0d0d 0%, #1a1a2e 50%, #16213e 100%)'
+const DEFAULT_GRADIENT = 'linear-gradient(160deg, #0d0d0d 0%, #1a1a2e 45%, #16213e 100%)'
+
+// Glow color tints for the icon radial glow (same hue as gradient, just more vivid)
+const GLOW_COLORS: Record<string, string> = {
+  'World':         'rgba(15, 90, 160, 0.4)',
+  'Tech':          'rgba(90, 30, 180, 0.4)',
+  'Finance':       'rgba(0, 120, 60, 0.4)',
+  'Health':        'rgba(30, 140, 30, 0.4)',
+  'Sports':        'rgba(180, 20, 20, 0.4)',
+  'Boston Sports': 'rgba(20, 50, 160, 0.4)',
+  'SD Sports':     'rgba(180, 110, 0, 0.4)',
+  'Boston':        'rgba(15, 60, 140, 0.4)',
+  'San Diego':     'rgba(0, 90, 140, 0.4)',
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'World':         '🌍',
+  'Tech':          '⚡',
+  'Finance':       '📈',
+  'Health':        '💪',
+  'Sports':        '🏆',
+  'Boston Sports': '🏈',
+  'SD Sports':     '⚾',
+  'Boston':        '🦞',
+  'San Diego':     '🌊',
+}
 
 export default function ArticleCard({ article, liked, onSave, onDismiss, onScrollNext }: ArticleCardProps) {
   const [exiting, setExiting] = useState<'left' | 'right' | null>(null)
+  const [imgFailed, setImgFailed] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
   const handleSave = () => {
@@ -49,7 +78,9 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
   const dismissOpacity = Math.min(Math.max(-offsetX / 80, 0), 1)
 
   const bg = FALLBACK_GRADIENTS[article.category] || DEFAULT_GRADIENT
-  const hasImage = Boolean(article.imageUrl)
+  const glowColor = GLOW_COLORS[article.category] || 'rgba(60, 60, 180, 0.3)'
+  const icon = CATEGORY_ICONS[article.category] || '📰'
+  const showFallback = !article.imageUrl || imgFailed
 
   let transform = `translateX(${offsetX}px) rotate(${rotation}deg)`
   let transition = 'none'
@@ -72,24 +103,29 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
     >
       {/* Background */}
       <div className="card-bg" style={{ background: bg }}>
-        {hasImage && (
+        {!showFallback && (
           <img
             src={article.imageUrl!}
             alt=""
             className="card-bg-img"
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            onError={() => setImgFailed(true)}
           />
         )}
+
+        {showFallback && (
+          <div className="card-icon-layer">
+            <div className="card-icon-glow" style={{ background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)` }} />
+            <span className="card-icon">{icon}</span>
+            <span className="card-category-label">{article.category}</span>
+          </div>
+        )}
+
         <div className="card-bg-gradient" />
       </div>
 
       {/* Swipe indicators */}
-      <div className="swipe-badge save-badge" style={{ opacity: saveOpacity }}>
-        ♥ SAVE
-      </div>
-      <div className="swipe-badge skip-badge" style={{ opacity: dismissOpacity }}>
-        SKIP ✕
-      </div>
+      <div className="swipe-badge save-badge" style={{ opacity: saveOpacity }}>♥ SAVE</div>
+      <div className="swipe-badge skip-badge" style={{ opacity: dismissOpacity }}>SKIP ✕</div>
 
       {/* Content overlay */}
       <div className="card-content">
@@ -111,14 +147,12 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
           >
             {liked ? '♥ Saved' : '♡ Save'}
           </button>
-
           <button
             className="action-pill read-pill"
             onClick={e => { e.stopPropagation(); window.open(article.link, '_blank', 'noopener') }}
           >
             Read →
           </button>
-
           <button
             className="action-pill dismiss-pill"
             onClick={e => { e.stopPropagation(); handleDismiss() }}
@@ -127,9 +161,7 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
           </button>
         </div>
 
-        <button className="scroll-hint" onClick={onScrollNext} aria-label="Next article">
-          ↓
-        </button>
+        <button className="scroll-hint" onClick={onScrollNext} aria-label="Next article">↓</button>
       </div>
     </div>
   )
