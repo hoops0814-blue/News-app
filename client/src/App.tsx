@@ -16,7 +16,7 @@ export interface Article {
   imageUrl: string | null
 }
 
-const CATEGORIES = ['All', 'World', 'Tech', 'Finance', 'Health', 'Sports', 'Boston', 'San Diego']
+const CATEGORIES = ['All', 'Work', 'World', 'Tech', 'Finance', 'Health', 'Sports', 'Boston', 'San Diego']
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([])

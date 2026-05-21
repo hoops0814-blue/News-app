@@ -23,6 +23,7 @@ const FALLBACK_GRADIENTS: Record<string, string> = {
   'SD Sports':     'linear-gradient(160deg, #1a0f00 0%, #2e1a00 45%, #4a2d00 100%)',
   'Boston':        'linear-gradient(160deg, #050d1a 0%, #081a33 45%, #0a2652 100%)',
   'San Diego':     'linear-gradient(160deg, #001219 0%, #001f2e 45%, #003347 100%)',
+  'Work':          'linear-gradient(160deg, #1a0500 0%, #3d0a00 45%, #5c1500 100%)',
 }
 
 const DEFAULT_GRADIENT = 'linear-gradient(160deg, #0d0d0d 0%, #1a1a2e 45%, #16213e 100%)'
@@ -38,6 +39,7 @@ const GLOW_COLORS: Record<string, string> = {
   'SD Sports':     'rgba(180, 110, 0, 0.4)',
   'Boston':        'rgba(15, 60, 140, 0.4)',
   'San Diego':     'rgba(0, 90, 140, 0.4)',
+  'Work':          'rgba(200, 60, 0, 0.4)',
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -50,6 +52,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   'SD Sports':     '⚾',
   'Boston':        '🦞',
   'San Diego':     '🌊',
+  'Work':          '🧱',
 }
 
 export default function ArticleCard({ article, liked, onSave, onDismiss, onScrollNext }: ArticleCardProps) {

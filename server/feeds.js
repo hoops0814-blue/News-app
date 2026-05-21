@@ -39,6 +39,19 @@ const feeds = [
   // San Diego Local
   { category: 'San Diego', source: 'KPBS', url: 'https://www.kpbs.org/feeds/news.rss' },
   { category: 'San Diego', source: 'SD Union Tribune', url: 'https://news.google.com/rss/search?q=San+Diego+local+news&hl=en-US&gl=US&ceid=US:en' },
+
+  // Work — Databricks & Industry
+  { category: 'Work', source: 'Databricks Blog', url: 'https://www.databricks.com/feed' },
+  { category: 'Work', source: 'Databricks News', url: 'https://news.google.com/rss/search?q=Databricks&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'Snowflake', url: 'https://news.google.com/rss/search?q=Snowflake+data+cloud&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'AWS', url: 'https://aws.amazon.com/blogs/aws/feed/' },
+  { category: 'Work', source: 'Azure', url: 'https://azure.microsoft.com/en-us/blog/feed/' },
+  { category: 'Work', source: 'Google Cloud', url: 'https://news.google.com/rss/search?q=Google+Cloud+Platform+announcement&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'OpenAI', url: 'https://news.google.com/rss/search?q=OpenAI&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'Anthropic', url: 'https://news.google.com/rss/search?q=Anthropic+AI&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'Cerebras', url: 'https://news.google.com/rss/search?q=Cerebras+Systems&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'SpaceX', url: 'https://news.google.com/rss/search?q=SpaceX&hl=en-US&gl=US&ceid=US:en' },
+  { category: 'Work', source: 'NVIDIA', url: 'https://news.google.com/rss/search?q=NVIDIA+AI+GPU&hl=en-US&gl=US&ceid=US:en' },
 ];
 
 module.exports = feeds;

@@ -78,6 +78,7 @@ app.get('/api/news', (req, res) => {
     'Sports': ['Sports', 'Boston Sports', 'SD Sports'],
     'Boston': ['Boston', 'Boston Sports'],
     'San Diego': ['San Diego', 'SD Sports'],
+    'Work': ['Work'],
   };
 
   const cats = categoryMap[category] || [category];
