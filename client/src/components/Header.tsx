@@ -10,7 +10,7 @@ export default function Header({ onRefresh, refreshing, lastUpdated }: HeaderPro
   return (
     <header className="header">
       <div className="header-left">
-        <h1 className="header-title">My News</h1>
+        <h1 className="header-title">My<span style={{color:'var(--green)'}}>News</span></h1>
         {timeAgo && <span className="header-updated">Updated {timeAgo}</span>}
       </div>
       <button
