@@ -1,0 +1,23 @@
+{
+  "name": "news-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server/index.js",
+    "client": "npm --prefix client run dev",
+    "install:all": "npm install && npm --prefix client install",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "node-cache": "^5.1.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
