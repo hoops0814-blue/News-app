@@ -61,13 +61,15 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
   const cardRef = useRef<HTMLDivElement>(null)
 
   const handleSave = () => {
+    if (exiting) return
     setExiting('right')
-    setTimeout(() => { onSave(); setExiting(null) }, 350)
+    setTimeout(() => { onSave() }, 240)
   }
 
   const handleDismiss = () => {
+    if (exiting) return
     setExiting('left')
-    setTimeout(() => { onDismiss(); setExiting(null) }, 350)
+    setTimeout(() => { onDismiss() }, 240)
   }
 
   const { offsetX, handlers } = useSwipe({
@@ -88,13 +90,13 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
   let transform = `translateX(${offsetX}px) rotate(${rotation}deg)`
   let transition = 'none'
   if (exiting === 'right') {
-    transform = `translateX(120vw) rotate(20deg)`
-    transition = 'transform 0.35s ease-out'
+    transform = `translateX(110vw) rotate(15deg)`
+    transition = 'transform 0.24s ease-out'
   } else if (exiting === 'left') {
-    transform = `translateX(-120vw) rotate(-20deg)`
-    transition = 'transform 0.35s ease-out'
+    transform = `translateX(-110vw) rotate(-15deg)`
+    transition = 'transform 0.24s ease-out'
   } else if (offsetX === 0) {
-    transition = 'transform 0.25s ease-out'
+    transition = 'transform 0.2s ease-out'
   }
 
   return (

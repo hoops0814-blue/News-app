@@ -1,59 +1,61 @@
 import { useRef, useState, useCallback } from 'react'
 
-interface SwipeHandlers {
-  onTouchStart: (e: React.TouchEvent) => void
-  onTouchMove: (e: React.TouchEvent) => void
-  onTouchEnd: () => void
-}
-
 interface UseSwipeOptions {
   onSwipeLeft?: () => void
   onSwipeRight?: () => void
   threshold?: number
 }
 
-export function useSwipe({ onSwipeLeft, onSwipeRight, threshold = 80 }: UseSwipeOptions) {
-  const start = useRef<{ x: number; y: number } | null>(null)
+export function useSwipe({ onSwipeLeft, onSwipeRight, threshold = 60 }: UseSwipeOptions) {
+  const startX = useRef<number | null>(null)
+  const startY = useRef<number | null>(null)
+  const lockedDir = useRef<'h' | 'v' | null>(null)
+  const latestDx = useRef(0)
   const [offsetX, setOffsetX] = useState(0)
-  const [isHorizontal, setIsHorizontal] = useState(false)
-  const directionLocked = useRef(false)
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    start.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    directionLocked.current = false
-    setIsHorizontal(false)
+    startX.current = e.touches[0].clientX
+    startY.current = e.touches[0].clientY
+    lockedDir.current = null
+    latestDx.current = 0
     setOffsetX(0)
   }, [])
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!start.current) return
-    const dx = e.touches[0].clientX - start.current.x
-    const dy = e.touches[0].clientY - start.current.y
+    if (startX.current === null || startY.current === null) return
 
-    if (!directionLocked.current) {
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 6) {
-        directionLocked.current = true
-        setIsHorizontal(true)
-      } else if (Math.abs(dy) > 6) {
-        directionLocked.current = true
-        setIsHorizontal(false)
-      }
+    const dx = e.touches[0].clientX - startX.current
+    const dy = e.touches[0].clientY - startY.current
+
+    // Wait for a clear movement before locking direction
+    if (lockedDir.current === null) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+      lockedDir.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v'
     }
 
-    if (isHorizontal || (directionLocked.current && Math.abs(dx) > Math.abs(dy))) {
+    if (lockedDir.current === 'h') {
       e.preventDefault()
+      latestDx.current = dx
       setOffsetX(dx)
     }
-  }, [isHorizontal])
+  }, [])
 
+  // Read from ref — never stale, no state dependency needed
   const onTouchEnd = useCallback(() => {
-    if (offsetX > threshold) onSwipeRight?.()
-    else if (offsetX < -threshold) onSwipeLeft?.()
+    if (lockedDir.current === 'h') {
+      const dx = latestDx.current
+      if (dx > threshold) onSwipeRight?.()
+      else if (dx < -threshold) onSwipeLeft?.()
+    }
+    latestDx.current = 0
+    lockedDir.current = null
+    startX.current = null
+    startY.current = null
     setOffsetX(0)
-    setIsHorizontal(false)
-    start.current = null
-    directionLocked.current = false
-  }, [offsetX, threshold, onSwipeLeft, onSwipeRight])
+  }, [threshold, onSwipeLeft, onSwipeRight])
 
-  return { offsetX, handlers: { onTouchStart, onTouchMove, onTouchEnd } as SwipeHandlers }
+  return {
+    offsetX,
+    handlers: { onTouchStart, onTouchMove, onTouchEnd },
+  }
 }
