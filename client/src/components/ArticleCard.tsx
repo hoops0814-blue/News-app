@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import type { Article } from '../App'
-import { useSwipe } from '../hooks/useSwipe'
 
 interface ArticleCardProps {
   article: Article
   liked: boolean
   onSave: () => void
-  onDismiss: () => void
-  onScrollNext: () => void
+  onPass: () => void
+  onNext: () => void
 }
 
 const FALLBACK_GRADIENTS: Record<string, string> = {
@@ -51,67 +50,33 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Work':          '🧱',
 }
 
-export default function ArticleCard({ article, liked, onSave, onDismiss, onScrollNext }: ArticleCardProps) {
-  const [exiting, setExiting] = useState<'left' | 'right' | null>(null)
+export default function ArticleCard({ article, liked, onSave, onPass, onNext }: ArticleCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
+  const [justSaved, setJustSaved] = useState(false)
 
   const handleSave = () => {
-    if (exiting) return
-    setExiting('right')
+    onSave()
+    if (!liked) {
+      setJustSaved(true)
+      setTimeout(() => setJustSaved(false), 600)
+    }
   }
-
-  const handleDismiss = () => {
-    if (exiting) return
-    setExiting('left')
-  }
-
-  // Fire the actual callback only when the CSS transition fully completes —
-  // no setTimeout, no race condition
-  const handleTransitionEnd = () => {
-    if (exiting === 'left') onDismiss()
-    else if (exiting === 'right') onSave()
-  }
-
-  const { offsetX, handlers } = useSwipe({
-    onSwipeRight: handleSave,
-    onSwipeLeft: handleDismiss,
-    threshold: 60,
-  })
-
-  const rotation = offsetX * 0.04
-  const saveOpacity = Math.min(Math.max(offsetX / 60, 0), 1)
-  const dismissOpacity = Math.min(Math.max(-offsetX / 60, 0), 1)
 
   const bg = FALLBACK_GRADIENTS[article.category] || DEFAULT_GRADIENT
   const glowColor = GLOW_COLORS[article.category] || 'rgba(60, 60, 180, 0.3)'
   const icon = CATEGORY_ICONS[article.category] || '📰'
   const showFallback = !article.imageUrl || imgFailed
 
-  let transform = `translateX(${offsetX}px) rotate(${rotation}deg)`
-  let transition = 'none'
-  if (exiting === 'right') {
-    transform = `translateX(110vw) rotate(15deg)`
-    transition = 'transform 0.28s ease-in'
-  } else if (exiting === 'left') {
-    transform = `translateX(-110vw) rotate(-15deg)`
-    transition = 'transform 0.28s ease-in'
-  } else if (offsetX === 0) {
-    transition = 'transform 0.22s ease-out'
-  }
-
   return (
-    <div
-      className="article-card"
-      style={{ transform, transition }}
-      onTransitionEnd={handleTransitionEnd}
-      {...handlers}
-    >
+    <div className="article-card">
+      {/* Full-screen background */}
       <div className="card-bg" style={{ background: bg }}>
         {!showFallback && (
           <img
             src={article.imageUrl!}
             alt=""
             className="card-bg-img"
+            loading="lazy"
             onError={() => setImgFailed(true)}
           />
         )}
@@ -125,9 +90,35 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
         <div className="card-bg-gradient" />
       </div>
 
-      <div className="swipe-badge save-badge" style={{ opacity: saveOpacity }}>♥ SAVE</div>
-      <div className="swipe-badge skip-badge" style={{ opacity: dismissOpacity }}>SKIP ✕</div>
+      {/* Right-side action buttons — TikTok style */}
+      <div className="card-side-actions">
+        <button
+          className={`side-btn save-btn ${liked ? 'active' : ''} ${justSaved ? 'pop' : ''}`}
+          onClick={handleSave}
+          aria-label="Save"
+        >
+          <span>{liked ? '♥' : '♡'}</span>
+          <small>{liked ? 'Saved' : 'Save'}</small>
+        </button>
+        <button
+          className="side-btn pass-btn"
+          onClick={onPass}
+          aria-label="Not interested"
+        >
+          <span>✕</span>
+          <small>Pass</small>
+        </button>
+        <button
+          className="side-btn read-btn"
+          onClick={() => window.open(article.link, '_blank', 'noopener')}
+          aria-label="Read article"
+        >
+          <span>↗</span>
+          <small>Read</small>
+        </button>
+      </div>
 
+      {/* Bottom content overlay */}
       <div className="card-content">
         <div className="card-meta-row">
           <span className="source-pill">{article.source}</span>
@@ -135,29 +126,12 @@ export default function ArticleCard({ article, liked, onSave, onDismiss, onScrol
         </div>
         <h2 className="card-headline">{article.title}</h2>
         {(article.summary || article.excerpt) && (
-          <p className="card-snippet">{(article.summary || article.excerpt).slice(0, 200)}</p>
+          <p className="card-snippet">{(article.summary || article.excerpt).slice(0, 220)}</p>
         )}
-        <div className="card-actions-row">
-          <button
-            className={`action-pill save-pill ${liked ? 'saved' : ''}`}
-            onClick={e => { e.stopPropagation(); handleSave() }}
-          >
-            {liked ? '♥ Saved' : '♡ Save'}
-          </button>
-          <button
-            className="action-pill read-pill"
-            onClick={e => { e.stopPropagation(); window.open(article.link, '_blank', 'noopener') }}
-          >
-            Read →
-          </button>
-          <button
-            className="action-pill dismiss-pill"
-            onClick={e => { e.stopPropagation(); handleDismiss() }}
-          >
-            ✕
-          </button>
-        </div>
-        <button className="scroll-hint" onClick={onScrollNext} aria-label="Next article">↓</button>
+        <button className="scroll-hint" onClick={onNext} aria-label="Next">
+          <span>↓</span>
+          <small>Next</small>
+        </button>
       </div>
     </div>
   )

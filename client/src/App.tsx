@@ -25,7 +25,6 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
   const { prefs, like, dislike, unlike, score } = usePreferences()
   const stackRef = useRef<HTMLDivElement>(null)
 
@@ -36,22 +35,21 @@ export default function App() {
       const res = await fetch(`/api/news?category=${encodeURIComponent(cat)}`)
       if (!res.ok) throw new Error('Failed to fetch')
       const data: Article[] = await res.json()
-      // Sort once at load time using current preference scores — order is then frozen
       const sorted = [...data].sort((a, b) => {
         const diff = score(b.category, b.source) - score(a.category, a.source)
         if (diff !== 0) return diff
         return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
       })
       setFeed(sorted)
-      setCurrentIndex(0)
       setLastUpdated(new Date())
+      stackRef.current?.scrollTo({ top: 0 })
     } catch {
       setError('Could not load articles. Is the server running?')
     } finally {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // score intentionally excluded — preferences only affect next fetch
+  }, [])
 
   useEffect(() => {
     fetchArticles(category)
@@ -63,8 +61,8 @@ export default function App() {
     setTimeout(() => { fetchArticles(category); setRefreshing(false) }, 4000)
   }
 
-  const goNext = useCallback(() => {
-    setCurrentIndex(i => i + 1)
+  const scrollNext = useCallback(() => {
+    stackRef.current?.scrollBy({ top: window.innerHeight, behavior: 'smooth' })
   }, [])
 
   const handleSave = useCallback((article: Article) => {
@@ -73,17 +71,12 @@ export default function App() {
     } else {
       like(article.id, article.category, article.source)
     }
-    goNext()
-  }, [prefs.likedIds, like, unlike, goNext])
+  }, [prefs.likedIds, like, unlike])
 
-  const handleDismiss = useCallback((article: Article) => {
+  const handlePass = useCallback((article: Article) => {
     dislike(article.id, article.category, article.source)
-    goNext()
-  }, [dislike, goNext])
-
-  const currentArticle = feed[currentIndex]
-  const progress = feed.length > 0 ? Math.round((currentIndex / feed.length) * 100) : 0
-  const remaining = Math.max(feed.length - currentIndex, 0)
+    scrollNext()
+  }, [dislike, scrollNext])
 
   return (
     <div className="app">
@@ -92,18 +85,13 @@ export default function App() {
           onRefresh={handleRefresh}
           refreshing={refreshing}
           lastUpdated={lastUpdated}
-          remaining={remaining}
+          remaining={feed.length}
         />
         <CategoryTabs
           categories={CATEGORIES}
           active={category}
           onChange={cat => setCategory(cat)}
         />
-        {!loading && feed.length > 0 && (
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
-          </div>
-        )}
       </div>
 
       <div ref={stackRef} className="card-stack">
@@ -127,24 +115,17 @@ export default function App() {
             <button className="state-btn" onClick={handleRefresh}>Refresh</button>
           </div>
         )}
-        {!loading && !error && feed.length > 0 && !currentArticle && (
-          <div className="full-screen-state">
-            <span className="state-icon">✓</span>
-            <p>You're all caught up!</p>
-            <button className="state-btn" onClick={handleRefresh}>Refresh Feed</button>
-          </div>
-        )}
-        {!loading && !error && currentArticle && (
-          <div key={currentArticle.id} className="card-snap-item card-enter">
+        {!loading && !error && feed.map(article => (
+          <div key={article.id} className="card-snap-item">
             <ArticleCard
-              article={currentArticle}
-              liked={prefs.likedIds.has(currentArticle.id)}
-              onSave={() => handleSave(currentArticle)}
-              onDismiss={() => handleDismiss(currentArticle)}
-              onScrollNext={goNext}
+              article={article}
+              liked={prefs.likedIds.has(article.id)}
+              onSave={() => handleSave(article)}
+              onPass={() => handlePass(article)}
+              onNext={scrollNext}
             />
           </div>
-        )}
+        ))}
       </div>
     </div>
   )
