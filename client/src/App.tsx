@@ -27,6 +27,8 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { prefs, like, dislike, unlike, score } = usePreferences()
   const stackRef = useRef<HTMLDivElement>(null)
+  // Stable feed order computed once per load — never reshuffles mid-session
+  const [feedOrder, setFeedOrder] = useState<string[]>([])
 
   const fetchArticles = useCallback(async (cat: string) => {
     try {
@@ -48,6 +50,18 @@ export default function App() {
     fetchArticles(category)
   }, [category, fetchArticles])
 
+  // Lock the order once when articles arrive — preferences only affect the next load
+  useEffect(() => {
+    if (articles.length === 0) return
+    const sorted = [...articles].sort((a, b) => {
+      const diff = score(b.category, b.source) - score(a.category, a.source)
+      if (diff !== 0) return diff
+      return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+    })
+    setFeedOrder(sorted.map(a => a.id))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articles]) // intentionally excludes score — order freezes at load time
+
   const handleRefresh = async () => {
     setRefreshing(true)
     await fetch('/api/refresh').catch(() => {})
@@ -59,15 +73,14 @@ export default function App() {
     stackRef.current.scrollBy({ top: window.innerHeight, behavior: 'smooth' })
   }, [])
 
+  // During session: only remove dismissed cards, never reorder
+  const articleMap = useMemo(() => new Map(articles.map(a => [a.id, a])), [articles])
   const sortedArticles = useMemo(() => {
-    return articles
-      .filter(a => !prefs.dislikedIds.has(a.id))
-      .sort((a, b) => {
-        const diff = score(b.category, b.source) - score(a.category, a.source)
-        if (diff !== 0) return diff
-        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
-      })
-  }, [articles, prefs.dislikedIds, score])
+    return feedOrder
+      .filter(id => !prefs.dislikedIds.has(id))
+      .map(id => articleMap.get(id))
+      .filter((a): a is Article => Boolean(a))
+  }, [feedOrder, articleMap, prefs.dislikedIds])
 
   return (
     <div className="app">
