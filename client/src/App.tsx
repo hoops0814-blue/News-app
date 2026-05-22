@@ -25,10 +25,10 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [feedOrder, setFeedOrder] = useState<string[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
   const { prefs, like, dislike, unlike, score } = usePreferences()
   const stackRef = useRef<HTMLDivElement>(null)
-  // Stable feed order computed once per load — never reshuffles mid-session
-  const [feedOrder, setFeedOrder] = useState<string[]>([])
 
   const fetchArticles = useCallback(async (cat: string) => {
     try {
@@ -48,9 +48,10 @@ export default function App() {
 
   useEffect(() => {
     fetchArticles(category)
+    setCurrentIndex(0)
   }, [category, fetchArticles])
 
-  // Lock the order once when articles arrive — preferences only affect the next load
+  // Lock feed order once when articles arrive — preferences only affect next load
   useEffect(() => {
     if (articles.length === 0) return
     const sorted = [...articles].sort((a, b) => {
@@ -59,8 +60,17 @@ export default function App() {
       return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
     })
     setFeedOrder(sorted.map(a => a.id))
+    setCurrentIndex(0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [articles]) // intentionally excludes score — order freezes at load time
+  }, [articles])
+
+  const articleMap = useMemo(() => new Map(articles.map(a => [a.id, a])), [articles])
+
+  // Stable ordered list for this session — never reorders
+  const sessionFeed = useMemo(() =>
+    feedOrder.map(id => articleMap.get(id)).filter((a): a is Article => Boolean(a)),
+    [feedOrder, articleMap]
+  )
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -68,29 +78,49 @@ export default function App() {
     setTimeout(() => { fetchArticles(category); setRefreshing(false) }, 4000)
   }
 
-  const scrollNext = useCallback(() => {
-    if (!stackRef.current) return
-    stackRef.current.scrollBy({ top: window.innerHeight, behavior: 'smooth' })
+  const goNext = useCallback(() => {
+    setCurrentIndex(i => i + 1)
   }, [])
 
-  // During session: only remove dismissed cards, never reorder
-  const articleMap = useMemo(() => new Map(articles.map(a => [a.id, a])), [articles])
-  const sortedArticles = useMemo(() => {
-    return feedOrder
-      .filter(id => !prefs.dislikedIds.has(id))
-      .map(id => articleMap.get(id))
-      .filter((a): a is Article => Boolean(a))
-  }, [feedOrder, articleMap, prefs.dislikedIds])
+  const handleSave = useCallback((article: Article) => {
+    if (prefs.likedIds.has(article.id)) {
+      unlike(article.id, article.category, article.source)
+    } else {
+      like(article.id, article.category, article.source)
+    }
+    goNext()
+  }, [prefs.likedIds, like, unlike, goNext])
+
+  const handleDismiss = useCallback((article: Article) => {
+    dislike(article.id, article.category, article.source)
+    goNext()
+  }, [dislike, goNext])
+
+  const currentArticle = sessionFeed[currentIndex]
+  const progress = sessionFeed.length > 0 ? Math.round((currentIndex / sessionFeed.length) * 100) : 0
+  const remaining = Math.max(sessionFeed.length - currentIndex, 0)
 
   return (
     <div className="app">
-      {/* Fixed overlay header */}
       <div className="top-overlay">
-        <Header onRefresh={handleRefresh} refreshing={refreshing} lastUpdated={lastUpdated} />
-        <CategoryTabs categories={CATEGORIES} active={category} onChange={cat => { setCategory(cat); stackRef.current?.scrollTo({ top: 0 }) }} />
+        <Header
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          lastUpdated={lastUpdated}
+          remaining={remaining}
+        />
+        <CategoryTabs
+          categories={CATEGORIES}
+          active={category}
+          onChange={cat => { setCategory(cat) }}
+        />
+        {!loading && sessionFeed.length > 0 && (
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+        )}
       </div>
 
-      {/* Card stack */}
       <div ref={stackRef} className="card-stack">
         {loading && (
           <div className="full-screen-state">
@@ -107,28 +137,33 @@ export default function App() {
           </div>
         )}
 
-        {!loading && !error && sortedArticles.length === 0 && (
+        {!loading && !error && sessionFeed.length === 0 && (
           <div className="full-screen-state">
             <span className="state-icon">📭</span>
-            <p>No articles yet. Pull to refresh.</p>
+            <p>No articles yet.</p>
             <button className="state-btn" onClick={handleRefresh}>Refresh</button>
           </div>
         )}
 
-        {!loading && !error && sortedArticles.map(article => (
-          <div key={article.id} className="card-snap-item">
+        {!loading && !error && sessionFeed.length > 0 && !currentArticle && (
+          <div className="full-screen-state">
+            <span className="state-icon">✓</span>
+            <p>You're all caught up!</p>
+            <button className="state-btn" onClick={handleRefresh}>Refresh Feed</button>
+          </div>
+        )}
+
+        {!loading && !error && currentArticle && (
+          <div key={currentArticle.id} className="card-snap-item card-enter">
             <ArticleCard
-              article={article}
-              liked={prefs.likedIds.has(article.id)}
-              onSave={() => prefs.likedIds.has(article.id)
-                ? unlike(article.id, article.category, article.source)
-                : like(article.id, article.category, article.source)
-              }
-              onDismiss={() => { dislike(article.id, article.category, article.source); scrollNext() }}
-              onScrollNext={scrollNext}
+              article={currentArticle}
+              liked={prefs.likedIds.has(currentArticle.id)}
+              onSave={() => handleSave(currentArticle)}
+              onDismiss={() => handleDismiss(currentArticle)}
+              onScrollNext={goNext}
             />
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
